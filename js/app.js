@@ -6,14 +6,21 @@ var Enemy = function() {
     // The image/sprite for our enemies, this uses
     // a helper we've provided to easily load images
     this.sprite = 'images/enemy-bug.png';
-}
 
+    this.x = 0;
+    this.y = 131;
+
+}
 // Update the enemy's position, required method for game
 // Parameter: dt, a time delta between ticks
 Enemy.prototype.update = function(dt) {
     // You should multiply any movement by the dt parameter
     // which will ensure the game runs at the same speed for
     // all computers.
+    this.x = this.x + (dt * 50);
+	  if(this.x > 505) {
+		       this.x = 0;
+	  }
 }
 
 // Draw the enemy on the screen, required method for game
@@ -44,3 +51,6 @@ document.addEventListener('keyup', function(e) {
 
     player.handleInput(allowedKeys[e.keyCode]);
 });
+
+var aaron = new Enemy();
+var allEnemies = [aaron];
