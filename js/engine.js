@@ -23,7 +23,8 @@ var Engine = (function(global) {
         win = global.window,
         canvas = doc.createElement('canvas'),
         ctx = canvas.getContext('2d'),
-        lastTime;
+        lastTime,
+        hitTime;
 
     canvas.width = 505;
     canvas.height = 606;
@@ -46,7 +47,17 @@ var Engine = (function(global) {
          * our update function since it may be used for smooth animation.
          */
         update(dt);
+        // need to redraw collided char and message for a few loops
+
+
+        //console.log(player.state, player.hitTime, player.dht);
+
         render();
+
+
+        if ((player.dht > 4) && (player.state === "collide" || player.state === "success")) {
+            reset();
+        }
 
         /* Set our lastTime variable which is used to determine the time delta
          * for the next time this function is called.
@@ -57,7 +68,7 @@ var Engine = (function(global) {
          * function again as soon as the browser is able to draw another frame.
          */
         win.requestAnimationFrame(main);
-    };
+    }
 
     /* This function does some initial setup that should only occur once,
      * particularly setting the lastTime variable that is required for the
@@ -80,7 +91,11 @@ var Engine = (function(global) {
      */
     function update(dt) {
         updateEntities(dt);
-        // checkCollisions();
+        checkCollisions();
+    }
+
+    function checkCollisions(){
+        player.collide();
     }
 
     /* This is called by the update function  and loops through all of the
@@ -92,12 +107,10 @@ var Engine = (function(global) {
      */
     function updateEntities(dt) {
         allEnemies.forEach(function(enemy) {
-            //console.log("enemy born");
             enemy.update(dt);
         });
         player.update();
-
-
+        balloon.update(player.state, player.x, player.y);
     }
 
     /* This function initially draws the "game level", it will then call
@@ -126,6 +139,8 @@ var Engine = (function(global) {
          * and, using the rowImages array, draw the correct image for that
          * portion of the "grid"
          */
+
+        ctx.clearRect(-10,-10,515,616); 
         for (row = 0; row < numRows; row++) {
             for (col = 0; col < numCols; col++) {
                 /* The drawImage function of the canvas' context element
@@ -155,7 +170,18 @@ var Engine = (function(global) {
             enemy.render();
         });
 
+        if (player.state === "collide" || player.state ==="success") {
+            //balloon.update(player.state, player.x, player.y);
+            balloon.render();
+        }
+
+        //}
+        // player.reset();
+
         player.render();
+
+
+        // speech balloons here?
     }
 
     /* This function does nothing but it could have been a good place to
@@ -165,6 +191,7 @@ var Engine = (function(global) {
     function reset() {
         // noop
         console.log("game starts");
+        hitTime = 0;
     }
 
     /* Go ahead and load all of the images we know we're going to need to
@@ -176,7 +203,9 @@ var Engine = (function(global) {
         'images/water-block.png',
         'images/grass-block.png',
         'images/enemy-bug.png',
-        'images/char-princess-girl.png'
+        'images/char-princess-girl.png',
+        'images/Success.png',
+        'images/Ouch.png'
     ]);
     Resources.onReady(init);
 
