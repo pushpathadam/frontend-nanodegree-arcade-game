@@ -1,14 +1,8 @@
+// function to get random ints between min and max values
 function randomIntFromInterval(min, max) {
   return Math.floor(Math.random() * (max -min) ) + min;
 }
 
-/* tested pseudo randomness
-function seededRandomIntFromInterval(seed, min, max) {
-    var rnd = (Math.random()+Math.sin(seed++)) * 10000 * 0.5;
-    return Math.floor((rnd - Math.floor(rnd))* (max -min)) + min;
-
-}
-*/
 // Enemies our player must avoid
 var Enemy = function(seed) {
     // Variables applied to each of our instances go here,
@@ -17,17 +11,6 @@ var Enemy = function(seed) {
     // The image/sprite for our enemies, this uses
     // a helper we've provided to easily load images
     this.sprite = 'images/enemy-bug.png';
-/*
-    var initPos = [ [-101,60],[-101,142],[-101,229],[-202,60],[-202,142],[-202,229],[-303,60],[-303,142],[-303,229],[-404,60],[-404,142],[-404,229],];
-
-    //var test = seededRandomIntFromInterval(seed,0,11);
-    var xindex = randomIntFromInterval(0,11);
-    var yindex = randomIntFromInterval(0,11);
-    this.x = initPos[xindex][0];
-    this.y = initPos[yindex][1];
-    this.speed= randomIntFromInterval(50,80);
-    console.log(seed,xindex, yindex, this.speed);
-    */
     this.reset();
 }
 
@@ -62,6 +45,8 @@ Enemy.prototype.render = function() {
     ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
 }
 
+// Speech Balloons tied to the character position & state
+// There are 2 cases: success and collision
 var Balloon = function() {
     // basic speech balloon
     // The image/sprite for our enemies, this uses
@@ -100,6 +85,15 @@ Balloon.prototype.render = function(){
 // This class requires an update(), render() and
 // a handleInput() method.
 
+// Each game lasts 66secs, 5 secs on start screen, 60 secs of gameplay, 1 sec on end play
+// player states are: startscreen, reset, inplay, collide, success, endscreen
+// startscreen, first 5 secs, player is at middle of screen
+// reset, 1 sec timeout, player is at bottom of the screen frozen
+// inplay, player is movable, tallying collides, adjusting for edge conditions
+// collide, player has been hit by a bug,freeze position for 1sec timeout, show "ouch", reset
+// success, player makes it to water, add point, freeze for 1 sec timeout, show balloon, reset
+// endscreen, 1secs no player, option to restart
+
 var Player = function() {
     // Variables applied to each of our instances go here,
     // we've provided one for you to get started
@@ -109,24 +103,24 @@ var Player = function() {
     this.sprite = 'images/char-princess-girl.png';
     this.x = 202;
     this.y= 405;
-
-    this.hitX = 0;
-    this.hitY = 0;
-    ///this.state = "inplay";
-    this.state = "born";
-    this.hitTime= 0;
-    this.dht = 0;
-    this.points = 0;
 }
 
-Player.prototype.update = function(bdt){
+Player.prototype.init = function(){
+    //setup variable for first frame
+    this.state ="init";
+    this.life = 61; // hard coded max life 60 seconds plus 2 preroll
+    this.hitTime= 0; // save time of last hit
+    this.dht = 0; // delta between current time and last hit
+    this.hitX = 0; // x position of last hit
+    this.hitY = 0; // y position of last hit
+    this.points = 0; //gain a point for each time player reaches water
 
-    var holdTime = 0.25; //hold for 0.25 secs seconds
+}
 
-    // freeze player on center of start screen for 0.25 secs
-    if (bdt >= 5) {
-        this.state = "inplay";
-    }
+
+Player.prototype.update = function(dt,elapsedTime){
+
+    var holdTime = 0.25; //hold for 0.25 secs after a hit or collision to let impact register
 
     //adjust for edge conditions
     if (this.state === "inplay"){
@@ -143,12 +137,16 @@ Player.prototype.update = function(bdt){
             this.y = -8;
             this.hit("success");
             this.points++;
-            player.reset();
+            //player.reset();
+            this.x = 202;
+            this.y = 405;
         }
         if (this.y > 435) {
             this.y =435;
         }
+        this.life = this.life - dt;
     };
+
     // freeze player for .25 secs after collision
     if (this.state ==="collide"){
         if (this.dht > -1 && this.dht < holdTime){
@@ -156,6 +154,10 @@ Player.prototype.update = function(bdt){
             this.y = this.hitY;
             this.dht = (Date.now()-this.hitTime)/1000;
         } else {
+            this.life = this.life - dt;
+            // odd case of character doesn't move back
+            this.x = 202;
+            this.y = 405;
             this.reset();
         }
     };
@@ -167,49 +169,84 @@ Player.prototype.update = function(bdt){
             this.y = this.hitY;
             this.dht = (Date.now()-this.hitTime)/1000;
         } else {
+            this.life = this.life - dt;
             this.reset();
+
         }
     }
 
     // freeze player on center of end screen after timeout
     if (this.state === "dead") {
-        this.x = canvas.width/2;
-        this.y = canvas.height/2;
+        this.x = 202;
+        this.y = 205;
     }
 };
 
-Player.prototype.birth = function() {
-    this.state = "born";
+Player.prototype.startScreen = function() {
+    //console.log("player is ready to play");
+    this.state = "startscreen";
     this.x = 202;
-    this.y = 200;
+    this.y = 405;
+}
+
+Player.prototype.preGame =function(state) {
+    //console.log("player is at bottom of screen");
+    this.state = state;
+    this.x = 202;
+    this.y = 405;
 }
 
 // check for collisions
 Player.prototype.collide = function() {
-    //console.log("length again",allEnemies.length);
     var len = allEnemies.length;
-    for (var i = 0; i < len; i++) {
-        if (this.x < allEnemies[i].x + 50 && this.x + 50 > allEnemies[i].x && this.y < allEnemies[i].y + 30 && this.y + 30 > allEnemies[i].y){
-              //return true;
-              this.hit("collide");
-              break;
+    // if the player is inplay, don't want to record  multiple collisions
+    if (player.state === "inplay") {
+        for (var i = 0; i < len; i++) {
+            if (this.x < allEnemies[i].x + 50 && this.x + 50 > allEnemies[i].x && this.y < allEnemies[i].y + 76 && this.y + 51 > allEnemies[i].y){
+                  //return true;
+                  this.hit("collide");
+                  break;
+            }
         }
     }
+
+
 }
 
-//set's the hit state
+//sets the hit state
 Player.prototype.hit = function(state){
     this.state = state;
     this.hitTime= Date.now();
     this.dht = (Date.now()-this.hitTime)/1000;
     this.hitX = this.x;
     this.hitY = this.y;
-    //console.log(this.state,this.hitTime, this.dht, this.hitX, this.hitY);
 };
+
+// move player to screen center once its life has run out.
+Player.prototype.dead = function(){
+    if (this.life < 0){
+        this.state = "dead";
+        this.x = 202;
+        this.y = 205;
+    }
+};
+
+// reset player to start position
+Player.prototype.reset = function() {
+    //move player back to start position
+    this.state = "inplay";
+    this.hitTime = 0;
+    this.dht = 0;
+    this.x = 202;
+    this.y = 405;
+    this.hitX = 0;
+    this.hitY = 0;
+
+};
+
 
 // render Players
 Player.prototype.render = function() {
-    //console.log(this.y);
     ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
 };
 
@@ -234,17 +271,6 @@ Player.prototype.handleInput = function(keyCode){
 };
 
 
-Player.prototype.reset = function() {
-    //move player back to start position
-    this.state = "inplay";
-    this.hitTime = 0;
-    this.dht =0;
-    this.x = 202;
-    this.y = 405;
-    this.hitX = 202;
-    this.hitY = 405;
-
-};
 
 // Now instantiate your objects.
 // Place the player object in a variable called player
